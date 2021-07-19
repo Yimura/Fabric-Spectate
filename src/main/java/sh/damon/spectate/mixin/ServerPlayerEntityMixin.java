@@ -45,14 +45,12 @@ public class ServerPlayerEntityMixin {
         final NbtCompound position = spectatingNbt.getCompound("position");
 
         assert world != null;
-        final SpectatingPlayer.SavedPosition savedPosition = new SpectatingPlayer.SavedPosition(
+        SpectatingPlayer.SavedPosition savedPosition = new SpectatingPlayer.SavedPosition(
             world,
             new Vec3d(position.getDouble("x"), position.getDouble("y"), position.getDouble("z")),
             camera.getFloat("yaw"),
             camera.getFloat("pitch")
         );
-
-        Spectate.log.info("READ NBT TAG: "+ spectatingNbt);
 
         player.setSpectating(true);
         player.setSavedPosition(savedPosition);
@@ -82,7 +80,5 @@ public class ServerPlayerEntityMixin {
         spectatingNbt.putString("world", savedPosition.getWorld().getRegistryKey().getValue().toString());
 
         nbt.put(SWITCH_POSITION, spectatingNbt);
-
-        Spectate.log.info("WROTE NBT TAG: "+ spectatingNbt);
     }
 }
