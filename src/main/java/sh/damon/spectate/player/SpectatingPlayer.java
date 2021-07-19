@@ -13,18 +13,6 @@ public class SpectatingPlayer {
         this.player = serverPlayerEntity;
     }
 
-    public double getX() {
-        return this.player.getX();
-    }
-
-    public double getY() {
-        return this.player.getY();
-    }
-
-    public double getZ() {
-        return this.player.getZ();
-    }
-
     public boolean isSpectating() {
         return this.spectating;
     }
