@@ -37,7 +37,7 @@ public class SpectateCommand implements BaseCommand {
         if (player.isSpectating()) {
             serverPlayerEntity.changeGameMode(GameMode.SURVIVAL);
 
-            final SpectatingPlayer.SavedPosition savedPosition = player.getSavedPosition();
+            SpectatingPlayer.SavedPosition savedPosition = player.getSavedPosition();
             if (savedPosition != null) {
                 Vec3d position = savedPosition.getPosition();
 
