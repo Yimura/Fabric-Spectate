@@ -23,11 +23,11 @@ public class SpectateCommand implements BaseCommand {
 
     @Override
     public int run(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        ServerCommandSource source = context.getSource();
-        ServerPlayerEntity serverPlayerEntity = source.getPlayer();
+        final ServerCommandSource source = context.getSource();
+        final ServerPlayerEntity serverPlayerEntity = source.getPlayer();
 
-        Spectate sp = Spectate.getInstance();
-        SpectatingPlayer player = sp.playerManager.getPlayer(serverPlayerEntity);
+        final Spectate sp = Spectate.getInstance();
+        final SpectatingPlayer player = sp.playerManager.getPlayer(serverPlayerEntity);
 
         if (serverPlayerEntity.isSpectator()) {
             if (!player.restore(source.getWorld())) {
