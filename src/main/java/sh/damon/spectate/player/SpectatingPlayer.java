@@ -1,16 +1,31 @@
 package sh.damon.spectate.player;
 
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ChunkTicketType;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.GameMode;
+
+import java.util.UUID;
 
 public class SpectatingPlayer {
-    private final ServerPlayerEntity player;
+    private ServerPlayerEntity player;
     private boolean spectating = false;
-    private SavedPosition savedPosition = null;
+    private SaveData saveData = null;
 
     public SpectatingPlayer(ServerPlayerEntity serverPlayerEntity) {
         this.player = serverPlayerEntity;
+    }
+
+    public ServerPlayerEntity getPlayer() {
+        return this.player;
+    }
+
+    public UUID getId()
+    {
+        return this.player.getUuid();
     }
 
     public boolean isSpectating() {
@@ -21,25 +36,58 @@ public class SpectatingPlayer {
         this.spectating = newState;
     }
 
-    public SavedPosition getSavedPosition() {
-        return this.savedPosition;
+    public SaveData getSavedPosition() {
+        return this.saveData;
     }
 
-    public void setSavedPosition(SavedPosition savedPosition) {
-        this.savedPosition = savedPosition;
+    public boolean restore(ServerWorld sourceWorld) {
+        if (this.saveData != null) {
+            Vec3d position = this.saveData.getPosition();
+
+            ChunkPos chunkPos = new ChunkPos(new BlockPos(position.x, position.y, position.z));
+
+            ServerWorld world = this.saveData.getWorld();
+
+            world.getChunkManager().addTicket(ChunkTicketType.POST_TELEPORT, chunkPos, 1, this.player.getId());
+            this.player.stopRiding();
+
+            if (sourceWorld == this.saveData.getWorld())
+                this.player.networkHandler.requestTeleport(position.x, position.y, position.z, this.saveData.getYaw(), this.saveData.getPitch());
+            else
+                this.player.teleport(this.saveData.getWorld(), position.x, position.y, position.z, this.saveData.getYaw(), this.saveData.getPitch());
+
+            this.player.changeGameMode(this.saveData.getGameMode());
+
+            return true;
+        }
+
+        return false;
     }
 
-    public void savePosition() {
-        this.savedPosition = new SavedPosition(this.player);
+    public void setSaveData(SaveData saveData) {
+        this.saveData = saveData;
     }
 
-    public static class SavedPosition {
+    public void save() {
+        this.saveData = new SaveData(this.player);
+
+        this.player.changeGameMode(GameMode.SPECTATOR);
+    }
+
+    public void updatePlayerEntity(ServerPlayerEntity serverPlayerEntity) {
+        this.player = serverPlayerEntity;
+    }
+
+    public static class SaveData {
+        private final GameMode gameMode;
         private final ServerWorld world;
         private final Vec3d position;
         private final float pitch;
         private final float yaw;
 
-        public SavedPosition(ServerPlayerEntity player) {
+        public SaveData(ServerPlayerEntity player) {
+            this.gameMode = player.interactionManager.getGameMode();
+
             this.world = player.getServerWorld();
 
             this.position = player.getPos();
@@ -47,7 +95,9 @@ public class SpectatingPlayer {
             this.yaw = player.getYaw();
         }
 
-        public SavedPosition(ServerWorld world, Vec3d position, float yaw, float pitch) {
+        public SaveData(GameMode gameMode, ServerWorld world, Vec3d position, float yaw, float pitch) {
+            this.gameMode = gameMode;
+
             this.world = world;
 
             this.position = position;
@@ -69,6 +119,14 @@ public class SpectatingPlayer {
 
         public ServerWorld getWorld() {
             return world;
+        }
+
+        public String toString() {
+            return String.format("%s { x: %f, y: %f, z: %f } => { yaw: %f, pitch: %f } ", this.world.toString(), this.position.x, this.position.y, this.position.z, this.yaw, this.pitch);
+        }
+
+        public GameMode getGameMode() {
+            return this.gameMode;
         }
     }
 }
