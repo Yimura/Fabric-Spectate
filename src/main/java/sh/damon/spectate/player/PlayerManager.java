@@ -15,11 +15,18 @@ public class PlayerManager {
     public SpectatingPlayer getPlayer(ServerPlayerEntity serverPlayerEntity) {
         final UUID id = serverPlayerEntity.getUuid();
 
-        if (this.players.containsKey(id))
-            return this.players.get(id);
+        SpectatingPlayer player;
 
-        final SpectatingPlayer player = new SpectatingPlayer(serverPlayerEntity);
-        this.players.put(id, player);
+        if (this.players.containsKey(id)) {
+            player = this.players.get(id);
+
+            player.updatePlayerEntity(serverPlayerEntity);
+        }
+        else {
+            player = new SpectatingPlayer(serverPlayerEntity);
+
+            this.players.put(id, player);
+        }
 
         return player;
     }
