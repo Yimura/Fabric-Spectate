@@ -3,14 +3,9 @@ package sh.damon.spectate.command.commands;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.command.TeleportCommand;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ChunkTicketType;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.text.LiteralText;
 import net.minecraft.world.GameMode;
 import sh.damon.spectate.Spectate;
 import sh.damon.spectate.command.BaseCommand;
@@ -34,30 +29,19 @@ public class SpectateCommand implements BaseCommand {
         Spectate sp = Spectate.getInstance();
         SpectatingPlayer player = sp.playerManager.getPlayer(serverPlayerEntity);
 
-        if (player.isSpectating()) {
-            serverPlayerEntity.changeGameMode(GameMode.SURVIVAL);
+        if (serverPlayerEntity.isSpectator()) {
+            if (!player.restore(source.getWorld())) {
+                player.save();
 
-            SpectatingPlayer.SavedPosition savedPosition = player.getSavedPosition();
-            if (savedPosition != null) {
-                Vec3d position = savedPosition.getPosition();
-
-                ChunkPos chunkPos = new ChunkPos(new BlockPos(position.x, position.y, position.z));
-                source.getWorld().getChunkManager().addTicket(ChunkTicketType.POST_TELEPORT, chunkPos, 1, serverPlayerEntity.getId());
-                serverPlayerEntity.stopRiding();
-
-                if (source.getWorld() == savedPosition.getWorld())
-                    serverPlayerEntity.networkHandler.requestTeleport(position.x, position.y, position.z, savedPosition.getYaw(), savedPosition.getPitch());
-                else
-                    serverPlayerEntity.teleport(savedPosition.getWorld(), position.x, position.y, position.z, savedPosition.getYaw(), savedPosition.getPitch());
+                source.sendFeedback(new LiteralText("[Spectate] No saved location, do /s again to switch on your current position."), false);
             }
+            else source.sendFeedback(new LiteralText("[Spectate] Position successfully restored."), false);
         }
         else {
-            serverPlayerEntity.changeGameMode(GameMode.SPECTATOR);
+            player.save();
 
-            player.savePosition();
+            source.sendFeedback(new LiteralText("[Spectate] To switch back use /s"), false);
         }
-
-        player.setSpectating(!player.isSpectating());
 
         return 0;
     }
