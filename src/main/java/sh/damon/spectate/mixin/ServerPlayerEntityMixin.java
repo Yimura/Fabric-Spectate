@@ -8,9 +8,8 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.util.registry.RegistryKey;
-import org.spongepowered.asm.mixin.Final;
+import net.minecraft.world.GameMode;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -23,14 +22,15 @@ public class ServerPlayerEntityMixin {
 
     @Inject(at = @At("RETURN"), method = "readCustomDataFromNbt")
     public void onReadNbtData(NbtCompound nbt, CallbackInfo ci) {
+        // Don't do anything unless player has SwitchPosition set
         if (!nbt.contains(SWITCH_POSITION)) return;
 
         final ServerPlayerEntity serverPlayerEntity = (ServerPlayerEntity) (Object) this;
 
         final Spectate sp = Spectate.getInstance();
         final SpectatingPlayer player = sp.playerManager.getPlayer(serverPlayerEntity);
-        // player position is still in memory no need to parse
-        if (player.getSavedPosition() != null) return;
+
+        if (!serverPlayerEntity.isSpectator()) return;
 
         final NbtCompound spectatingNbt = nbt.getCompound(SWITCH_POSITION);
 
@@ -44,8 +44,11 @@ public class ServerPlayerEntityMixin {
         final NbtCompound camera = spectatingNbt.getCompound("camera");
         final NbtCompound position = spectatingNbt.getCompound("position");
 
+        final GameMode gameMode = GameMode.getOrNull(spectatingNbt.getInt("gameMode"));
+
         assert world != null;
-        SpectatingPlayer.SavedPosition savedPosition = new SpectatingPlayer.SavedPosition(
+        final SpectatingPlayer.SaveData saveData = new SpectatingPlayer.SaveData(
+            gameMode,
             world,
             new Vec3d(position.getDouble("x"), position.getDouble("y"), position.getDouble("z")),
             camera.getFloat("yaw"),
@@ -53,21 +56,24 @@ public class ServerPlayerEntityMixin {
         );
 
         player.setSpectating(true);
-        player.setSavedPosition(savedPosition);
+        player.setSaveData(saveData);
     }
 
     @Inject(at = @At("RETURN"), method = "writeCustomDataToNbt")
     public void onWriteNbtData(NbtCompound nbt, CallbackInfo ci) {
-        final Spectate sp = Spectate.getInstance();
-        final SpectatingPlayer player = sp.playerManager.getPlayer((ServerPlayerEntity) (Object) this);
+        final ServerPlayerEntity serverPlayerEntity = (ServerPlayerEntity) (Object) this;
 
-        if (!player.isSpectating()) return;
-        final SpectatingPlayer.SavedPosition savedPosition = player.getSavedPosition();
-        final Vec3d pos = savedPosition.getPosition();
+        final Spectate sp = Spectate.getInstance();
+        final SpectatingPlayer player = sp.playerManager.getPlayer(serverPlayerEntity);
+
+        if (!serverPlayerEntity.isSpectator()) return;
+
+        final SpectatingPlayer.SaveData saveData = player.getSavedPosition();
+        final Vec3d pos = saveData.getPosition();
 
         NbtCompound camera = new NbtCompound();
-        camera.putFloat("pitch", savedPosition.getPitch());
-        camera.putFloat("yaw", savedPosition.getYaw());
+        camera.putFloat("pitch", saveData.getPitch());
+        camera.putFloat("yaw", saveData.getYaw());
 
         NbtCompound position = new NbtCompound();
         position.putDouble("x", pos.getX());
@@ -77,7 +83,8 @@ public class ServerPlayerEntityMixin {
         NbtCompound spectatingNbt = new NbtCompound();
         spectatingNbt.put("camera", camera);
         spectatingNbt.put("position", position);
-        spectatingNbt.putString("world", savedPosition.getWorld().getRegistryKey().getValue().toString());
+        spectatingNbt.putInt("gameMode", saveData.getGameMode().getId());
+        spectatingNbt.putString("world", saveData.getWorld().getRegistryKey().getValue().toString());
 
         nbt.put(SWITCH_POSITION, spectatingNbt);
     }
